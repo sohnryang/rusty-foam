@@ -10,10 +10,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  clippy:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+      - name: Run rustfmt
+        run: cargo fmt --verbose --all -- --check
       - name: Run clippy
         run: cargo clippy --verbose
