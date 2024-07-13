@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 
-struct ByteStream {
+pub struct ByteStream {
     capacity: usize,
     head_index: usize,
     used_capacity: usize,
