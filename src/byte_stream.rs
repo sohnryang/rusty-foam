@@ -72,3 +72,132 @@ impl Write for ByteStream {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{self, Read, Write};
+
+    use super::ByteStream;
+
+    #[test]
+    fn test_simple() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(1024);
+        let input_string = b"abcdefgh".repeat(128);
+
+        byte_stream.write(&input_string)?;
+        let mut read_buf = [0; 1024];
+        byte_stream.read(&mut read_buf)?;
+        assert_eq!(input_string, read_buf);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_truncation() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(1024);
+        let input_string = b"abcdefgh".repeat(128);
+
+        byte_stream.write(&input_string)?;
+        let mut read_buf = [0; 128];
+        byte_stream.read(&mut read_buf)?;
+        assert_eq!(input_string[0..128], read_buf);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_write_truncation() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(128);
+        let input_string = b"abcdefgh".repeat(128);
+
+        byte_stream.write(&input_string)?;
+        let mut read_buf = [0; 128];
+        byte_stream.read(&mut read_buf)?;
+        assert_eq!(input_string[0..128], read_buf);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_write_read_multiple_times() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(16);
+        byte_stream.write(b"Hello")?;
+        byte_stream.write(b" ")?;
+        byte_stream.write(b"World")?;
+
+        let mut result = String::new();
+        byte_stream.read_to_string(&mut result)?;
+
+        assert_eq!(result, "Hello World");
+        Ok(())
+    }
+
+    #[test]
+    fn test_circular_buffer_behavior() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(8);
+        byte_stream.write(b"12345678")?;
+
+        let mut buf = [0; 4];
+        byte_stream.read(&mut buf)?;
+        assert_eq!(&buf, b"1234");
+
+        byte_stream.write(b"ABCD")?;
+
+        let mut result = String::new();
+        byte_stream.read_to_string(&mut result)?;
+
+        assert_eq!(result, "5678ABCD");
+        Ok(())
+    }
+
+    #[test]
+    fn test_partial_reads() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(16);
+        byte_stream.write(b"Hello World")?;
+
+        let mut buf = [0; 5];
+        byte_stream.read(&mut buf)?;
+        assert_eq!(&buf, b"Hello");
+
+        byte_stream.read(&mut buf)?;
+        assert_eq!(&buf, b" Worl");
+
+        byte_stream.read(&mut buf)?;
+        assert_eq!(&buf[0..1], b"d");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_capacity_and_overflow() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(8);
+        assert_eq!(byte_stream.capacity(), 8);
+
+        let write_result = byte_stream.write(b"123456789")?;
+        assert_eq!(write_result, 8); // Only 8 bytes should be written
+
+        let mut result = String::new();
+        byte_stream.read_to_string(&mut result)?;
+        assert_eq!(result, "12345678");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_empty_reads() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(8);
+        let mut buf = [0; 4];
+        let read_result = byte_stream.read(&mut buf)?;
+        assert_eq!(read_result, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_full_writes() -> io::Result<()> {
+        let mut byte_stream = ByteStream::new(8);
+        byte_stream.write(b"12345678")?;
+        let write_result = byte_stream.write(b"9")?;
+        assert_eq!(write_result, 0); // No space left, should write 0 bytes
+        Ok(())
+    }
+}
