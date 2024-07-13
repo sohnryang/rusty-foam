@@ -83,10 +83,9 @@ fn benchmark_byte_stream(
 
     // Consistency check (outside of timed section)
     let expected_data: Vec<u8> = corpus
-        .iter()
+        .into_iter()
         .cycle()
         .take(read_size * reads_per_cycle * cycles)
-        .cloned()
         .collect();
 
     if read_buffer != expected_data {
